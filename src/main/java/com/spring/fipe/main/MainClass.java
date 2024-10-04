@@ -1,17 +1,11 @@
 package com.spring.fipe.main;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.spring.fipe.model.CodeName;
 import com.spring.fipe.model.Veiculo;
 import com.spring.fipe.service.ConsumoApi;
 import com.spring.fipe.service.ConverteDados;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Scanner;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class MainClass {
@@ -22,9 +16,15 @@ public class MainClass {
 
     public void exibeMenu() {
 
+        int opcaoVeiculo = 0;
+        List<Integer> listaCodigoVeiculos = Arrays.asList(1, 2, 3);
         var stringVeiculo = "";
+        List<String> listaCodigoMarcas;
+        long codigoMarca = 0;
+        List<String> listaCodigoModelos;
+        long codigoModelo = 0;
 
-        while (stringVeiculo.isEmpty()) {
+        while (!listaCodigoVeiculos.contains(opcaoVeiculo)) {
             System.out.println("""
                 **************************
                 Digite sua opção de veículo:
@@ -33,7 +33,7 @@ public class MainClass {
                 3- Caminhões
                 **************************
                 """);
-            var opcaoVeiculo = scanner.nextInt();
+            opcaoVeiculo = scanner.nextInt();
 
             switch (opcaoVeiculo) {
                 case 1:
@@ -50,38 +50,41 @@ public class MainClass {
             }
         }
 
-        var link ="https://fipe.parallelum.com.br/api/v2/" + stringVeiculo + "/brands";
+        var link = "https://fipe.parallelum.com.br/api/v2/" + stringVeiculo + "/brands";
         var json = consumoApi.obterDados(link);
-        //System.out.println(json);
-        //System.out.println(json.length());
         var dados = converteDados.converteLista(json, CodeName.class);
-        //System.out.println(dados);
-        dados.forEach(d -> System.out.println(d.name() + " - " + d.code()));
-        System.out.println("Informe o código da marca desejada:");
-        var codigoMarca = scanner.nextInt();
 
-        var link2 ="https://fipe.parallelum.com.br/api/v2/" + stringVeiculo + "/brands/" + codigoMarca + "/models";
-        var json2 = consumoApi.obterDados(link2);
-        var dados2 = converteDados.converteLista(json2, CodeName.class);
-        dados2.forEach(d -> System.out.println(d.name() + " - " + d.code()));
+        listaCodigoMarcas = dados.stream().map(d -> d.code()).collect(Collectors.toList());
 
-        System.out.println("Informe o código do modelo desejado:");
-        var codigoModelo = scanner.nextInt();
+        while (!listaCodigoMarcas.contains(String.valueOf(codigoMarca))) {
+            dados.forEach(d -> System.out.println(d.name() + " - Código: " + d.code()));
+            System.out.println("Informe o código da marca desejada:");
+            codigoMarca = scanner.nextLong();
+            if (!listaCodigoMarcas.contains(String.valueOf(codigoMarca))) System.out.println("Código de marca não encontrado, tente novamente.");
+        }
 
-        var dados3 = dados2.stream().filter(d -> d.name().toLowerCase().contains("king"));
-        //dados3.forEach(System.out::println);
+        link = "https://fipe.parallelum.com.br/api/v2/" + stringVeiculo + "/brands/" + codigoMarca + "/models";
+        json = consumoApi.obterDados(link);
+        dados = converteDados.converteLista(json, CodeName.class);
+        listaCodigoModelos = dados.stream().map(d -> d.code()).collect(Collectors.toList());
 
-        var link4 ="https://fipe.parallelum.com.br/api/v2/" + stringVeiculo + "/brands/" + codigoMarca + "/models/" + codigoModelo + "/years";
-        var json4 = consumoApi.obterDados(link4);
-        var dados4 = converteDados.converteLista(json4, CodeName.class);
-        System.out.println(dados4);
+        while (!listaCodigoModelos.contains(String.valueOf(codigoModelo))) {
+            dados.forEach(d -> System.out.println(d.name() + " - Código: " + d.code()));
+            System.out.println("Informe o código do modelo desejado:");
+            codigoModelo = scanner.nextLong();
+            if (!listaCodigoModelos.contains(String.valueOf(codigoModelo))) System.out.println("Código de modelo não encontrado, tente novamente.");
+        }
 
-        var link5 ="https://fipe.parallelum.com.br/api/v2/" + stringVeiculo + "/brands/" + codigoMarca + "/models/" + codigoModelo + "/years/";
-        var dados5 = dados4.stream().map(d ->  converteDados.converteDados(consumoApi.obterDados(link5 + d.code()), Veiculo.class));
-        
-        dados5.forEach(d -> System.out.println(d.model() + " - " + d.modelYear() + " - " + d.price()));
+        link = "https://fipe.parallelum.com.br/api/v2/" + stringVeiculo + "/brands/" + codigoMarca + "/models/" + codigoModelo + "/years";
+        json = consumoApi.obterDados(link);
+        dados = converteDados.converteLista(json, CodeName.class);
 
+        var finalLink = "https://fipe.parallelum.com.br/api/v2/" + stringVeiculo + "/brands/" + codigoMarca + "/models/" + codigoModelo + "/years/";
+        var finalDados = dados.stream()
+                .map(d ->  converteDados.converteDados(consumoApi.obterDados(finalLink + d.code()), Veiculo.class))
+                .sorted(Comparator.comparing(Veiculo::modelYear));
 
-
+        System.out.println("Valor de mercado atual:");
+        finalDados.forEach(d -> System.out.println(d.model() + " - Ano: " + d.modelYear() + " - Preço: " + d.price()));
     }
 }
